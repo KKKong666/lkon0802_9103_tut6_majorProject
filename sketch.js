@@ -22,6 +22,12 @@ let targetScaleFactor = 0.5;
 // Setting the transition scaling speed
 let lerpSpeed = 0.05; 
 
+//Declare the particles and assign it an empty array, to store data   
+let particles = []; 
+
+//Declare the speed value for the code that follows to change based on the time, which can be flexibly controlled
+let duration = 50; 
+
 
 function setup() {
 
@@ -149,22 +155,58 @@ function draw() {
   // Display the ripple effect
   waveEffect.display();
 
-  //Add circular element scaling logic
-  //The scaleFactor gradually approaches the targetScaleFactor at a speed controlled by lerpSpeed. 
-  //This smooth change animates the scaling and makes it look more natural.
-  scaleFactor = lerp(scaleFactor, targetScaleFactor, lerpSpeed);
-  //console.log(scaleFactor); 
 
-  //As scaleFactor approaches 0.5, targetScaleFactor is set to 1.0, allowing scaleFactor to start scaling to 1.0.
-  //As scaleFactor approaches 1.0, targetScaleFactor is set to 0.5, allowing scaleFactor to scale back down to 0.5 again.
-  //The scaleFactor will keep changing between 0.5 and 1.0 to achieve a circular scaling effect that animates the circular element.
-  if (scaleFactor <= 0.5 + lerpSpeed) {
-    targetScaleFactor = 1.0;
-  } else if (scaleFactor >= 1.0 - lerpSpeed) {
-    targetScaleFactor = 0.5;
+// Control scaling with the sin() function
+// Generates particles when the scaleFactor reaches a certain threshold.
+// Particles are generated in the center of shadowRings and are updated and displayed over time.
+
+// Uses the sin function to generate a smooth loop from 0 to 1. 
+// Duration controls the period of the sin() wave.
+// sin() value to the range [0, 1]
+  let progress = (sin(frameCount / duration * TWO_PI ) + 1) / 2; 
+
+  // scaleFactor varies smoothly between 0.5 and 1.
+  scaleFactor = lerp(0.5, 1, progress)
+
+  //Particle generation starts when scaleFactor is less than or equal to 0.55 and the particles array is empty.
+  if (scaleFactor <= 0.55) {
+    if (particles.length === 0) { 
+
+      // The outer for loop iterates over each object in the shadowRings array 
+      for (let i = 0; i < shadowRings.length; i++) {
+        let centerX = shadowRings[i].x;  
+        let centerY = shadowRings[i].y;
+        let radius = shadowRings[i].radius;
+
+        for (let i = 0; i < 100; i++) {
+          // Generate random angle between 0 and 2π.
+          let angle = random(TWO_PI); 
+
+          // Assign a random speed between 1 and 3 to the particles.
+          let speed = random(1, 3); 
+
+          // Generate new particles around the circle
+          let particle = new Particle(centerX-80, centerY-80, radius, angle, speed);
+          // adds the new particle to the particles array.
+          particles.push(particle);
+        }
+      };
+    }
   }
 
+// Filter the particles array to remove those particles where isOffScreen() returns true. 
+// isOffScreen() is Particle 's method for determining if a particle is off screen.
+  particles = particles.filter(function(particle) {
+    return !particle.isOffScreen();
+  });
   
+  // Updating and drawing particles
+  for (let i = 0; i < particles.length; i++) {
+    particles[i].update();
+    particles[i].display();
+  }
+
+
   // Display each graphic object in for loop
   for (let i = 0; i < graphicsObjects.length; i++) {
     graphicsObjects[i].display(scaleFactor);
@@ -287,6 +329,40 @@ class DecorativeCircleRing {
   }
 }
 
+// A Particle class is defined to represent a particle. 
+// Particles have properties such as position, movement angle, speed, size and transparency, and contain methods for updating, displaying and determining whether they are off-screen.
+class Particle {
+  constructor(centerX, centerY, radius, angle, speed) {
+    this.x = centerX + cos(angle) * radius;
+    this.y = centerY + sin(angle) * radius;
+    this.angle = angle;
+    this.speed = speed;
+    this.size = random(3, 8);
+    this.alpha = 255; //Transparency of particles
+  }
+
+// The particle moves along the angle direction.
+// alculate the horizontal and vertical displacement respectively.
+  update() {
+    this.x += cos(this.angle) * this.speed;
+    this.y += sin(this.angle) * this.speed;
+
+    // The transparency of the particle is gradually reduced, giving a “dissipated” effect.
+    this.alpha -= 5;
+  }
+
+  display() {
+    noStroke();
+    fill(255, 255, 255, this.alpha);
+    ellipse(this.x, this.y, this.size, this.size);
+  }
+
+  // Determine if the particle has completely disappeared.
+  // Return true means the particle is completely transparent (alpha <= 0), it is considered “off screen”.
+  isOffScreen() {
+    return this.alpha <= 0;
+  }
+}
 // Functions for drawing meshes and distortion effects
 function drawGridAndDistortion(layer) {
   layer.background(173, 216, 230);
