@@ -13,11 +13,22 @@ let waveEffect;
 // Declare the variable gridLayer
 let gridLayer;
 
+//Set the initial scale size for scaling circular patterns
+let scaleFactor = 1;
+
+//Set the transition scaling speed
+let targetScaleFactor = 0.5; 
+
+// Setting the transition scaling speed
+let lerpSpeed = 0.05; 
+
+
 function setup() {
 
 //Create a canvas that has the same size as the browser window, using the variables windowWidth and windowHeight
   createCanvas(windowWidth, windowHeight);
-  noLoop();
+  //Remove the group code, as a loop is required to generate the animated graphics
+  //noLoop();
   
 //Initialise Graphic Elements, such as the colours and rings
   initialiseGraphics();
@@ -137,10 +148,26 @@ function draw() {
   
   // Display the ripple effect
   waveEffect.display();
+
+  //Add circular element scaling logic
+  //The scaleFactor gradually approaches the targetScaleFactor at a speed controlled by lerpSpeed. 
+  //This smooth change animates the scaling and makes it look more natural.
+  scaleFactor = lerp(scaleFactor, targetScaleFactor, lerpSpeed);
+  //console.log(scaleFactor); 
+
+  //As scaleFactor approaches 0.5, targetScaleFactor is set to 1.0, allowing scaleFactor to start scaling to 1.0.
+  //As scaleFactor approaches 1.0, targetScaleFactor is set to 0.5, allowing scaleFactor to scale back down to 0.5 again.
+  //The scaleFactor will keep changing between 0.5 and 1.0 to achieve a circular scaling effect that animates the circular element.
+  if (scaleFactor <= 0.5 + lerpSpeed) {
+    targetScaleFactor = 1.0;
+  } else if (scaleFactor >= 1.0 - lerpSpeed) {
+    targetScaleFactor = 0.5;
+  }
+
   
   // Display each graphic object in for loop
   for (let i = 0; i < graphicsObjects.length; i++) {
-    graphicsObjects[i].display();
+    graphicsObjects[i].display(scaleFactor);
   }
 } 
 
@@ -172,7 +199,7 @@ function windowResized() {
 }
 
 // Gradient ring type
-//Contains the coordinates of the center of the circle, inner and outer radii, number of circles, and gradient colors (shadow, middle, highlight)
+// Contains the coordinates of the center of the circle, inner and outer radii, number of circles, and gradient colors (shadow, middle, highlight)
 class GradientRing {
   constructor(x, y, innerRadius, outerRadius, numRings, shadowColour, midColour, highlightColour) {
     this.x = x;
@@ -193,7 +220,10 @@ class GradientRing {
   }
 
   // Show gradient ring
-  display() {
+  // The scaleFactor is used for scaling, to resize all the circles.
+  // Step controls the radius spacing between the rings so that each ring's radius increment is the same distance away.
+  // The rings will be dynamically scaled up or down according to the scaleFactor value.
+  display(scaleFactor) {
     let step = (this.outerRadius - this.innerRadius) / this.numRings;
     for (let r = this.innerRadius; r <= this.outerRadius; r += step) {
       let t = map(r, this.innerRadius, this.outerRadius, 0, 1);
@@ -201,7 +231,7 @@ class GradientRing {
       stroke(this.calculatecolor(t));
       strokeWeight(5);
       noFill();
-      ellipse(this.x, this.y, r * 2, r * 2);
+      ellipse(this.x, this.y, r * 2* scaleFactor, r * 2* scaleFactor);
     }
   }
 }
@@ -218,14 +248,15 @@ class ConcentricCircles {
   }
 
   // Display concentric circles
-  display() {
+  // The rings will be dynamically scaled up or down according to the scaleFactor value.
+  display(scaleFactor) {
     noFill();
     stroke(this.strokeColour);
     strokeWeight(2);
     for (let i = 0; i < this.numCircles; i++) {
       //Calculate the radius of the current circle
       let radius = map(i, 0, this.numCircles - 1, this.minRadius, this.maxRadius);
-      ellipse(this.x, this.y, radius * 2, radius * 2);
+      ellipse(this.x, this.y, radius * 2* scaleFactor, radius * 2* scaleFactor);
     }
   }
 }
@@ -243,14 +274,15 @@ class DecorativeCircleRing {
   }
 
   // Display the decorative ring
-  display() {
+  // The rings will be dynamically scaled up or down according to the scaleFactor value.
+  display(scaleFactor) {
     fill(this.fillColour);
     noStroke();
     for (let i = 0; i < this.numCircles; i++) {
       let angle = i * this.angleStep;
-      let x = this.x + this.radius * cos(angle);
-      let y = this.y + this.radius * sin(angle);
-      ellipse(x, y, 6, 6);
+      let x = this.x + this.radius * cos(angle)* scaleFactor;
+      let y = this.y + this.radius * sin(angle)* scaleFactor;
+      ellipse(x, y, 6* scaleFactor, 6* scaleFactor);
     }
   }
 }
