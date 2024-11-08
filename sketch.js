@@ -7,19 +7,13 @@ let colourPalette;
 // Declare the variable shadowRings and assign it an empty array, to store data   
 let shadowRings = [];
 
-// Declare the variable waveEffect 
-let waveEffect;
-
-// Declare the variable gridLayer
-let gridLayer;
-
 //Set the initial scale size for scaling circular patterns
 let scaleFactor = 1;
 
 //Set the transition scaling speed
 let targetScaleFactor = 0.5; 
 
-// Setting the transition scaling speed
+//Set the transition scaling speed
 let lerpSpeed = 0.05; 
 
 //Declare the particles and assign it an empty array, to store data   
@@ -27,6 +21,25 @@ let particles = [];
 
 //Declare the speed value for the code that follows to change based on the time, which can be flexibly controlled
 let duration = 50; 
+
+//Declare the ducks and assign it an empty array, to store data
+let ducks = [];
+
+// Control the speed of the duck's movement
+let duckSpeed = 5; 
+
+// Boundary distance
+// Us to control the bounce of the duck as it approaches the boundary
+let dst = 50; 
+
+// Minimum distance to ensure no overlap between ducks
+let minDistance = 60; 
+
+// Declare the variable waveEffect 
+let waveEffect;
+
+// Declare the variable gridLayer
+let gridLayer;
 
 
 function setup() {
@@ -58,6 +71,11 @@ function initialiseGraphics() {
   
 //Initialize the array assigned to shadowRings
   shadowRings = [];
+
+//Initialize the array assigned to particles
+  particles = [];
+  ducks = []; 
+  
 
 // Assign the variable colourPalette an array with colors inspired by the selected artwork
   colourPalette = [
@@ -146,6 +164,29 @@ function initialiseGraphics() {
       graphicsObjects.push(new DecorativeCircleRing(posX, posY, baseRadius + j * radiusIncrement, 36 + j * 6, color(255, 255, 255, baseOpacity - j * opacityDecrement)));
     }
   }
+// Created and initialized five Duck objects 
+// Made sure that their randomly generated positions on the screen did not overlap.
+  for (let i = 0; i < 5; i++) {
+    let x = random(width);
+    let y = random(height);
+
+  // The horizontal and vertical velocities, respectively, are randomly chosen to be -1 or 1
+  // indicating different initial directions of motion.
+    let vx = random([-1, 1]);
+    let vy = random([-1, 1]);
+    let duck = new Duck(x, y, vx, vy);
+
+  // Use the isOverlapping function to check if the newly generated duck overlaps with other objects.
+  // If it does, regenerate the positions x and y and create a new Duck object until you find a position that doesn't overlap.
+  // Add the generated duck object, which is confirmed to be non-overlapping, to the ducks array
+    while (isOverlapping(duck)) {
+      x = random(width);
+      y = random(height);
+      duck = new Duck(x, y, vx, vy);
+    }
+  
+  ducks.push(duck);
+  }
 }
 
 function draw() {
@@ -154,6 +195,36 @@ function draw() {
   
   // Display the ripple effect
   waveEffect.display();
+
+  // A double loop updates the state of each duck, draws them, and checks for and handles collisions between ducks.
+  for (let i = 0; i < ducks.length; i++) {
+
+    // Updates the duck's position and speed so that it moves across the screen.
+    ducks[i].update();  
+    // draw the ducks and display them on the screen.
+    ducks[i].display(); 
+    
+    // Calculate the distance between ducks[i] and ducks[j] using the dist function.
+    // If the distance is less than minDistance, the two ducks are considered to overlap or collide.
+    for (let j = i + 1; j < ducks.length; j++) {
+      if (dist(ducks[i].x, ducks[i].y, ducks[j].x, ducks[j].y) < minDistance) {
+
+        // When a collision is detected, the bounce method is called to make the ducks bounce.
+        // make ducks[i] bounce relative to ducks[j].
+        // make ducks[j] bounce relative to ducks[i].
+        ducks[i].bounce(ducks[j]); 
+        ducks[j].bounce(ducks[i]); 
+      }
+    }
+    
+    for (let j = 0; j < graphicsObjects.length; j++) {
+      if (graphicsObjects[j].scaleFactor < 0.8 &&
+        dist(ducks[i].x, ducks[i].y, graphicsObjects[j].x - 80, graphicsObjects[j].y - 80) < 100 * graphicsObjects[j].scaleFactor + minDistance) {
+        ducks[i].bounce(graphicsObjects[j]); // 反弹
+        ducks[i].bounce(graphicsObjects[i]); // 反弹
+  }
+}
+  }
 
 
 // Control scaling with the sin() function
@@ -216,14 +287,14 @@ function draw() {
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   waveEffect = new WaveEffect(80, color(0, 164, 223), 3, 200);
+  // This function is not used for the time being, if it is kept it will take up a lot of computer resources and may cause the animation to slow down abnormally.
+
   initialiseGraphics()
 
   // Regenerate the grid layer
   gridLayer = createGraphics(width, height);
   drawGridAndDistortion(gridLayer);
 
-  // Regenerate the ripple effect to fit the new canvas size
-  waveEffect = new WaveEffect(80, color(0, 164, 223), 3, 200);
 
   //Applying a for loop to loop through graphicsObjects
   for (let i = 0; i < graphicsObjects.length; i++) {
@@ -363,6 +434,131 @@ class Particle {
     return this.alpha <= 0;
   }
 }
+
+// Defines a Duck class for creating and controlling the behavior of the duck
+// Including movement, speed changes, boundary collision detection, and displaying the rotation angle of the duck.
+class Duck {
+  constructor(x, y, vx, vy) {
+
+    // the initial position of the duck.
+    this.x = x; 
+    this.y = y; 
+    // the direction of the duck's initial speed.
+    // multiplied by duckSpeed to control the amount of speed.
+    this.vx = vx * duckSpeed; 
+    this.vy = vy * duckSpeed; 
+    this.maxSpeed = 5;
+
+    // The current angle of rotation of the duck, used to orient the duck to the direction of motion when displayed.
+    this.currentAngle = 0; 
+
+    // Controls the smoothness of the duck's rotation, which affects the speed at which the duck turns.
+    this.smoothness = 0.1; 
+  }
+
+  update() {
+
+   // Randomly change the speed direction of the duck every 120 frames.
+   // Generate a random angle, convert it to vx and vy
+   // Make the duck move in the new random direction with maxSpeed.
+   // Update the duck's position
+    if (frameCount % 50 === 0) {
+      let angle = random(TWO_PI); 
+      this.vx = cos(angle) * this.maxSpeed;
+      this.vy = sin(angle) * this.maxSpeed;
+    }
+
+    
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // If the duck is close to the edge of the screen (less than dst or more than the width of the screen minus dst )
+    // Reverse the direction of the speed.
+    if (this.x < dst) {
+      this.vx = 1; // 
+    } else if (this.x > width - dst) {
+      this.vx = -1; //
+    }
+
+    if (this.y < dst) {
+      this.vy = 1; // 
+    } else if (this.y > height - dst) {
+      this.vy = -1; // 
+    }
+
+    // Use atan2 to calculate the target angle targetAngle of the duck's direction of motion.
+    let targetAngle = atan2(this.vy, this.vx);
+
+    // Update currentAngle with lerp to bring the duck's steering closer to the target angle, with controlled by smoothness..
+    this.currentAngle = lerp(this.currentAngle, targetAngle, this.smoothness);
+  }
+
+  display() {
+    push();
+    translate(this.x, this.y);
+    // Rotate the coordinate system to align the duck's orientation with currentAngle. 
+    // HALF_PI is used to adjust the orientation to align with the direction of movement.
+    rotate(this.currentAngle + HALF_PI); 
+    this.drawDuck(); 
+    pop();
+  }
+
+  // draw duck shape
+  drawDuck() {
+    fill(255, 219, 56); // body
+    stroke(246, 205, 52);  
+    strokeWeight(4);
+    ellipse(0, 0, 60, 80); 
+
+    fill(255, 120, 42); // mouth
+    stroke(255, 51, 26); // mouth
+    strokeWeight(2);
+    ellipse(0, -15, 30, 35); 
+
+    fill(255, 219, 56); // small body
+    stroke(246, 205, 52); 
+    strokeWeight(4);
+    ellipse(0, 0, 40, 45); 
+
+    fill(0); // eyes
+    noStroke();
+    ellipse(-6, -12, 6, 6); // left eye
+    ellipse(6, -12, 6, 6); // right eye
+  }
+
+  // Allow the ducks to bounce in the event of a collision
+  // Check the two ducks are not overlapping.
+  bounce(otherDuck) { // Use to the bouncing of two ducks after a collision.
+
+    // angle: calculate the angle between the current duck ( this ) and the other duck ( otherDuck ). 
+    // atan2 function is used to calculate the angle from otherDuck to this in order to determine the direction of the bounce.
+    let angle = atan2(this.y - otherDuck.y, this.x - otherDuck.x);
+    
+    // adjusts the current duck's speed to a value that corresponds to the direction of the angle.
+    // changes the duck's speed away from the otherDuck. 
+    // duckSpeed determines the amount of speed that will result from the rebound.
+    this.vx = cos(angle) * duckSpeed;
+    this.vy = sin(angle) * duckSpeed;
+  }
+}
+
+// make sure that new ducks don't overlap with other ducks when generating their positions.
+// Use to check if the specified duck is overlapping with other ducks in the existing ducks list.
+// Iterates over all ducks otherDuck and checks the distance between duck and otherDuck.
+function isOverlapping(duck) {
+  for (let otherDuck of ducks) {
+
+    //use the dist function to calculate the distance between duck and otherDuck.
+    // If the distance is less than minDistance, the two ducks overlap, so return true.
+    // If no overlap is found at the end of the loop, false is returned.
+    if (dist(duck.x, duck.y, otherDuck.x, otherDuck.y) < minDistance) {
+      return true; 
+    }
+  }
+  return false; 
+}
+
+
 // Functions for drawing meshes and distortion effects
 function drawGridAndDistortion(layer) {
   layer.background(173, 216, 230);
